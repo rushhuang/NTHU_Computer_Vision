@@ -39,6 +39,70 @@ def GetHomography(a, b):
 	H = H.reshape((3, 3))
 	return H
 
+def GetRectangle(img, corners):
+
+	# Get the outer bound of the rectangle
+	min_x = img.shape[1]
+	max_x = 0
+	min_y = img.shape[0]
+	max_y = 0
+	for i in corners:
+		if i[0] > max_x: 
+			max_x = i[0]
+		if i[0] < min_x:
+			min_x = i[0]
+		if i[1] > max_y:
+			max_y = i[1]
+		if i[1] < min_y:
+			min_y = i[1]
+
+	# Calculate pixels in constrained area
+	for i in range(img.shape[0]):
+		for j in range(img.shape[1]):
+			if min_x <= j <= max_x and min_y <= i <= max_y:
+				# img[i][j] = [0, 255, 255]
+
+				# Left hand side method
+				# AX + BY + C = 0
+				# D = A * xp + B * yp + C
+				# P3 - P1
+				A0 = -(corners[2][1] - corners[0][1])
+				B0 = (corners[2][0] - corners[0][0])
+				C0 = -((A0 * corners[0][0]) + (B0 * corners[0][1]))
+				D0 = A0 * j + B0 * i + C0
+
+				# P4 - P3
+				A1 = -(corners[3][1] - corners[2][1])
+				B1 = (corners[3][0] - corners[2][0])
+				C1 = -((A1 * corners[2][0]) + (B1 * corners[2][1]))
+				D1 = A1 * j + B1 * i + C1
+
+				# P2 - P4
+				A2 = -(corners[1][1] - corners[3][1])
+				B2 = (corners[1][0] - corners[3][0])
+				C2 = -((A2 * corners[3][0]) + (B2 * corners[3][1]))
+				D2 = A2 * j + B2 * i + C2
+
+				# P1 - P2
+				A3 = -(corners[0][1] - corners[1][1])
+				B3 = (corners[0][0] - corners[1][0])
+				C3 = -((A3 * corners[1][0]) + (B3 * corners[1][1]))
+				D3 = A3 * j + B3 * i + C3
+
+				if(D0 <= 0 and D1 <= 0 and D2 <= 0 and D3 <= 0):
+					img[i][j] = [0, 255, 255]
+
+
+	# Print the 4 corners
+	for i in corners:
+		x = i[0]
+		y = i[1]
+		# circle(image, coordinate, radius, color, thickness)
+		cv2.circle(img, (x, y), 5, (255, 0, 255), -1)
+
+	cv2.imshow(testA, img)
+	cv2.waitKey(0)
+
 def ForwardWarp():
 	pass
 
@@ -70,31 +134,5 @@ if __name__ == '__main__':
 	H_A_left_A_right = GetHomography(testA_left_homo, testA_right_homo)
 	# H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
-	min_x = img_A.shape[1]
-	max_x = 0
-	min_y = img_A.shape[0]
-	max_y = 0
-	for i in testA_left:
-		if i[0] > max_x: 
-			max_x = i[0]
-		if i[0] < min_x:
-			min_x = i[0]
-		if i[1] > max_y:
-			max_y = i[1]
-		if i[1] < min_y:
-			min_y = i[1]
-
-	for i in range(img_A.shape[0]):
-		for j in range(img_A.shape[1]):
-			if min_x <= j <= max_x and min_y <= i <= max_y:
-				img_A[i][j] = [0, 255, 255]
-
-	for i in testA_left:
-		x = i[0]
-		y = i[1]
-		# circle(image, coordinate, radius, color, thickness)
-		cv2.circle(img_A, (x, y), 5, (255, 0, 255), -1)
-
-	cv2.imshow(testA, img_A)
-	cv2.waitKey(0)
+	GetRectangle(img_A, testA_left)
 
