@@ -8,6 +8,7 @@ def GetHomogeneousPoints(point_2d):
 
 def GetHomography(a, b):
 	# a = Hb
+	# b = H^{-1}a
 
 	# Concatenate the equations
 	# Ai = [[X1, Y1, 1, 0, 0, 0, −x1X1, −x1Y1, −x1],
@@ -33,13 +34,18 @@ def GetHomography(a, b):
 
 	# Find H, which is the eigenvector with the smallest eigenvalue
 	idx = eigenValues.argsort()[0]
-	eigenValues = eigenValues[idx]
+	# eigenValues = eigenValues[idx]
 	# The column of the returned eigenvector is real eigen vector.
 	H = eigenVectors[:, idx]
 	H = H.reshape((3, 3))
+	# print("Test ||H|| (sqrt(sum(H^2))): %3lf" % np.sqrt(np.sum(H**2)))
 	return H
 
 def GetRectangle(img, corners):
+	"""
+	Return: [[x1, y1, 0],[x2, y2, 0],...]
+	"""
+	rectangle_homo = []
 
 	# Get the outer bound of the rectangle
 	min_x = img.shape[1]
@@ -60,9 +66,10 @@ def GetRectangle(img, corners):
 	for i in range(img.shape[0]):
 		for j in range(img.shape[1]):
 			if min_x <= j <= max_x and min_y <= i <= max_y:
-				# img[i][j] = [0, 255, 255]
+				# img[i][j] = [255, 255, 0]
 
-				# Left hand side method
+				# Left hand side method:
+				# To find pixels within 4 corners
 				# AX + BY + C = 0
 				# D = A * xp + B * yp + C
 				# P3 - P1
@@ -90,23 +97,36 @@ def GetRectangle(img, corners):
 				D3 = A3 * j + B3 * i + C3
 
 				if(D0 <= 0 and D1 <= 0 and D2 <= 0 and D3 <= 0):
-					img[i][j] = [0, 255, 255]
+					# img[i][j] = [0, 255, 255]
+					rectangle_homo += [[j, i, 1]]
 
 
 	# Print the 4 corners
-	for i in corners:
-		x = i[0]
-		y = i[1]
-		# circle(image, coordinate, radius, color, thickness)
-		cv2.circle(img, (x, y), 5, (255, 0, 255), -1)
+	# for i in corners:
+	# 	x = i[0]
+	# 	y = i[1]
+	# 	# circle(image, coordinate, radius, color, thickness)
+	# 	cv2.circle(img, (x, y), 5, (255, 0, 255), -1)
 
-	cv2.imshow(testA, img)
-	cv2.waitKey(0)
+	# cv2.imshow(testA, img)
+	# cv2.waitKey(0)
 
-def ForwardWarp():
-	pass
+	return rectangle_homo
 
-def BackwardWarp():
+def ForwardWarp(img_dst, img_src, src_points, H):
+	for p in src_points:
+		p = p.reshape((3, 1))
+		p_prime = np.dot(H, p)
+		p_prime /= p_prime[2]
+		x = int(np.round(p_prime[0]))
+		y = int(np.round(p_prime[1]))
+		# print(p[0], p[1])
+		# print(x, y)
+		img_dst[y][x] = img_src[p[1][0]][p[0][0]]
+
+	return img_dst
+
+def BackwardWarp(img_dst, dst_points, img_src, src_points, H):
 	pass
 
 if __name__ == '__main__':
@@ -134,5 +154,10 @@ if __name__ == '__main__':
 	H_A_left_A_right = GetHomography(testA_left_homo, testA_right_homo)
 	# H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
-	GetRectangle(img_A, testA_left)
+	Rec_A_right = GetRectangle(img_A, testA_right)
+	Rec_A_right = np.asarray(Rec_A_right)
+	img_A_out = img_A
+	img_A_out = ForwardWarp(img_A_out, img_A, Rec_A_right, H_A_left_A_right)
 
+	cv2.imshow(testA, img_A_out)
+	cv2.waitKey(0)
