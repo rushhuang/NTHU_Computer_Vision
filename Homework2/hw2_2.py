@@ -127,10 +127,20 @@ def ForwardWarp(img_dst, img_src, src_points, H):
 
 	return img_dst
 
-def BackwardWarp(img_dst, img_src, src_points, H):
-	pass
+def BackwardWarp(img_dst, img_src, dst_points, H):
+	for p_prime in dst_points:
+		p_prime = p_prime.reshape((3, 1))
+		p = np.dot(np.linalg.inv(H), p_prime)
+		p /= p[2]
+		x = int(np.round(p[0]))
+		y = int(np.round(p[1]))
+		# print(p_prime[0], p_prime[1])
+		# print(x, y)
+		img_dst[p_prime[1][0]][p_prime[0][0]] = img_src[y][x]
 
-def SwapImgA(img, a, b, H):
+	return img_dst
+
+def SwapImgA(img, a, b, H, warp='backward'):
 	"""
 	a = Hb
 	"""
@@ -141,16 +151,23 @@ def SwapImgA(img, a, b, H):
 	Rec_a = GetRectangle(img_out, a)
 	Rec_a = np.asarray(Rec_a)
 
-	# From b to a
-	img_out = ForwardWarp(img_out, img, Rec_b, H)
+	if warp == 'backward':
+		# From b to a
+		img_out = BackwardWarp(img_out, img, Rec_a, H)
+		# From a to b
+		img_out = BackwardWarp(img_out, img, Rec_b, np.linalg.inv(H))
 
-	# From a to b
-	img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H))
+	if warp == 'forward':
+		# From b to a
+		img_out = ForwardWarp(img_out, img, Rec_b, H)
+		# From a to b
+		img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H))
 
-	cv2.imshow('imgA', img_out)
-	cv2.waitKey(0)
+	# cv2.imshow('imgA_' + warp, img_out)
+	# cv2.waitKey(0)
+	cv2.imwrite('imgA_' + warp + '.jpg', img_out)
 
-def SwapImgBC(img_B, img_C, b, c, H):
+def SwapImgBC(img_B, img_C, b, c, H, warp='backward'):
 	"""
 	b = Hc
 	"""
@@ -161,17 +178,25 @@ def SwapImgBC(img_B, img_C, b, c, H):
 	Rec_c = np.asarray(Rec_c)
 	Rec_b = GetRectangle(img_B_out, b)
 	Rec_b = np.asarray(Rec_b)
-	
-	# From c to b
-	img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
 
-	# From b to c
-	img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H))
+	if warp == 'backward':
+		# From c to b
+		img_B_out = BackwardWarp(img_B_out, img_C, Rec_b, H)
+		# From b to c
+		img_C_out = BackwardWarp(img_C_out, img_B, Rec_c, np.linalg.inv(H))
 
-	cv2.imshow('ImgB', img_B_out)
-	cv2.waitKey(0)
-	cv2.imshow('ImgC', img_C_out)
-	cv2.waitKey(0)
+	if warp == 'forward':
+		# From c to b
+		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
+		# From b to c
+		img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H))
+
+	# cv2.imshow('ImgB', img_B_out)
+	# cv2.waitKey(0)
+	# cv2.imshow('ImgC', img_C_out)
+	# cv2.waitKey(0)
+	cv2.imwrite('imgB_' + warp + '.jpg', img_B_out)
+	cv2.imwrite('imgC_' + warp + '.jpg', img_C_out)
 
 if __name__ == '__main__':
 
@@ -198,5 +223,8 @@ if __name__ == '__main__':
 	H_A_left_A_right = GetHomography(testA_left_homo, testA_right_homo)
 	H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
-	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right)
-	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C)
+	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='forward')
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='forward')
+
+	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward')
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward')
