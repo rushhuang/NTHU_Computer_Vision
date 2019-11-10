@@ -98,6 +98,7 @@ def GetRectangle(img, corners):
 
 				if(D0 <= 0 and D1 <= 0 and D2 <= 0 and D3 <= 0):
 					# img[i][j] = [0, 255, 255]
+					img[i][j] = [0, 0, 0]
 					rectangle_homo += [[j, i, 1]]
 
 
@@ -126,8 +127,51 @@ def ForwardWarp(img_dst, img_src, src_points, H):
 
 	return img_dst
 
-def BackwardWarp(img_dst, dst_points, img_src, src_points, H):
+def BackwardWarp(img_dst, img_src, src_points, H):
 	pass
+
+def SwapImgA(img, a, b, H):
+	"""
+	a = Hb
+	"""
+	img_out = img.copy()
+
+	Rec_b = GetRectangle(img_out, b)
+	Rec_b = np.asarray(Rec_b)
+	Rec_a = GetRectangle(img_out, a)
+	Rec_a = np.asarray(Rec_a)
+
+	# From b to a
+	img_out = ForwardWarp(img_out, img, Rec_b, H)
+
+	# From a to b
+	img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H))
+
+	cv2.imshow('imgA', img_out)
+	cv2.waitKey(0)
+
+def SwapImgBC(img_B, img_C, b, c, H):
+	"""
+	b = Hc
+	"""
+	img_B_out = img_B.copy()
+	img_C_out = img_C.copy()
+
+	Rec_c = GetRectangle(img_C_out, c)
+	Rec_c = np.asarray(Rec_c)
+	Rec_b = GetRectangle(img_B_out, b)
+	Rec_b = np.asarray(Rec_b)
+	
+	# From c to b
+	img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
+
+	# From b to c
+	img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H))
+
+	cv2.imshow('ImgB', img_B_out)
+	cv2.waitKey(0)
+	cv2.imshow('ImgC', img_C_out)
+	cv2.waitKey(0)
 
 if __name__ == '__main__':
 
@@ -152,12 +196,7 @@ if __name__ == '__main__':
 	testC_2D_homo = GetHomogeneousPoints(testC_2D)
 
 	H_A_left_A_right = GetHomography(testA_left_homo, testA_right_homo)
-	# H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
+	H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
-	Rec_A_right = GetRectangle(img_A, testA_right)
-	Rec_A_right = np.asarray(Rec_A_right)
-	img_A_out = img_A
-	img_A_out = ForwardWarp(img_A_out, img_A, Rec_A_right, H_A_left_A_right)
-
-	cv2.imshow(testA, img_A_out)
-	cv2.waitKey(0)
+	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right)
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C)
