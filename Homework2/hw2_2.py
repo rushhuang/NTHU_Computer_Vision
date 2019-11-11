@@ -119,6 +119,7 @@ def ForwardWarp(img_dst, img_src, src_points, H):
 		p = p.reshape((3, 1))
 		p_prime = np.dot(H, p)
 		p_prime /= p_prime[2]
+
 		x = int(np.round(p_prime[0]))
 		y = int(np.round(p_prime[1]))
 		# print(p[0], p[1])
@@ -127,20 +128,50 @@ def ForwardWarp(img_dst, img_src, src_points, H):
 
 	return img_dst
 
-def BackwardWarp(img_dst, img_src, dst_points, H):
+def BackwardWarp(img_dst, img_src, dst_points, H, algo='bilinear'):
 	for p_prime in dst_points:
 		p_prime = p_prime.reshape((3, 1))
 		p = np.dot(np.linalg.inv(H), p_prime)
 		p /= p[2]
-		x = int(np.round(p[0]))
-		y = int(np.round(p[1]))
-		# print(p_prime[0], p_prime[1])
-		# print(x, y)
-		img_dst[p_prime[1][0]][p_prime[0][0]] = img_src[y][x]
+		
+		if algo == 'bilinear':
+			x = p[0]
+			y = p[1]
+
+			x_floor = np.floor(x)
+			y_floor = np.floor(y)
+			x_ceil = np.ceil(x)
+			y_ceil = np.ceil(y)
+			# print(x_floor, x_ceil, y_floor, y_ceil)
+
+			w00 = (x_ceil - x) * (y_ceil - y)
+			w01 = (x - x_floor) * (y_ceil - y)
+			w10 = (x_ceil - x) * (y - y_floor)
+			w11 = (x - x_floor) * (y - y_floor)
+			# print(w00, w01, w10, w11)
+
+			x_floor = int(x_floor)
+			y_floor = int(y_floor)
+			x_ceil = int(x_ceil)
+			y_ceil = int(y_ceil)
+	
+			p00 = img_src[y_floor][x_floor]
+			p01 = img_src[y_floor][x_ceil]
+			p10 = img_src[y_ceil][x_floor]
+			p11 = img_src[y_ceil][x_ceil]
+	
+			img_dst[p_prime[1][0]][p_prime[0][0]] = p00*w00 + p01*w01 + p10*w10 + p11*w11
+
+		if algo == 'nn':
+			x = int(np.round(p[0]))
+			y = int(np.round(p[1]))
+			# print(p_prime[0], p_prime[1])
+			# print(x, y)
+			img_dst[p_prime[1][0]][p_prime[0][0]] = img_src[y][x]
 
 	return img_dst
 
-def SwapImgA(img, a, b, H, warp='backward'):
+def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 	"""
 	a = Hb
 	"""
@@ -153,21 +184,21 @@ def SwapImgA(img, a, b, H, warp='backward'):
 
 	if warp == 'backward':
 		# From b to a
-		img_out = BackwardWarp(img_out, img, Rec_a, H)
+		img_out = BackwardWarp(img_out, img, Rec_a, H, algo=algo)
 		# From a to b
-		img_out = BackwardWarp(img_out, img, Rec_b, np.linalg.inv(H))
+		img_out = BackwardWarp(img_out, img, Rec_b, np.linalg.inv(H), algo=algo)
 
 	if warp == 'forward':
 		# From b to a
-		img_out = ForwardWarp(img_out, img, Rec_b, H)
+		img_out = ForwardWarp(img_out, img, Rec_b, H, algo=algo)
 		# From a to b
-		img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H))
+		img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H), algo=algo)
 
 	# cv2.imshow('imgA_' + warp, img_out)
 	# cv2.waitKey(0)
-	cv2.imwrite('imgA_' + warp + '.jpg', img_out)
+	cv2.imwrite('imgA_' + warp + '_' + algo + '.jpg', img_out)
 
-def SwapImgBC(img_B, img_C, b, c, H, warp='backward'):
+def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 	"""
 	b = Hc
 	"""
@@ -181,22 +212,22 @@ def SwapImgBC(img_B, img_C, b, c, H, warp='backward'):
 
 	if warp == 'backward':
 		# From c to b
-		img_B_out = BackwardWarp(img_B_out, img_C, Rec_b, H)
+		img_B_out = BackwardWarp(img_B_out, img_C, Rec_b, H, algo=algo)
 		# From b to c
-		img_C_out = BackwardWarp(img_C_out, img_B, Rec_c, np.linalg.inv(H))
+		img_C_out = BackwardWarp(img_C_out, img_B, Rec_c, np.linalg.inv(H), algo=algo)
 
 	if warp == 'forward':
 		# From c to b
-		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
+		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H, algo=algo)
 		# From b to c
-		img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H))
+		img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H), algo=algo)
 
 	# cv2.imshow('ImgB', img_B_out)
 	# cv2.waitKey(0)
 	# cv2.imshow('ImgC', img_C_out)
 	# cv2.waitKey(0)
-	cv2.imwrite('imgB_' + warp + '.jpg', img_B_out)
-	cv2.imwrite('imgC_' + warp + '.jpg', img_C_out)
+	cv2.imwrite('imgB_' + warp + '_' + algo + '.jpg', img_B_out)
+	cv2.imwrite('imgC_' + warp + '_' + algo + '.jpg', img_C_out)
 
 if __name__ == '__main__':
 
@@ -224,7 +255,10 @@ if __name__ == '__main__':
 	H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
 	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='forward')
-	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='forward')
+	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='forward')
 
-	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward')
-	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward')
+	# SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='nn')
+	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='nn')
+
+	# SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='bilinear')
+	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='bilinear')
