@@ -187,16 +187,17 @@ def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 		img_out = BackwardWarp(img_out, img, Rec_a, H, algo=algo)
 		# From a to b
 		img_out = BackwardWarp(img_out, img, Rec_b, np.linalg.inv(H), algo=algo)
+		cv2.imwrite('imgA_' + warp + '_' + algo + '.jpg', img_out)
 
 	if warp == 'forward':
 		# From b to a
-		img_out = ForwardWarp(img_out, img, Rec_b, H, algo=algo)
+		img_out = ForwardWarp(img_out, img, Rec_b, H)
 		# From a to b
-		img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H), algo=algo)
+		img_out = ForwardWarp(img_out, img, Rec_a, np.linalg.inv(H))
+		cv2.imwrite('imgA_' + warp + '.jpg', img_out)
 
-	# cv2.imshow('imgA_' + warp, img_out)
+	# cv2.imshow('imgA' , img_out)
 	# cv2.waitKey(0)
-	cv2.imwrite('imgA_' + warp + '_' + algo + '.jpg', img_out)
 
 def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 	"""
@@ -215,19 +216,21 @@ def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 		img_B_out = BackwardWarp(img_B_out, img_C, Rec_b, H, algo=algo)
 		# From b to c
 		img_C_out = BackwardWarp(img_C_out, img_B, Rec_c, np.linalg.inv(H), algo=algo)
+		cv2.imwrite('imgB_' + warp + '_' + algo + '.jpg', img_B_out)
+		cv2.imwrite('imgC_' + warp + '_' + algo + '.jpg', img_C_out)
 
 	if warp == 'forward':
 		# From c to b
-		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H, algo=algo)
+		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
 		# From b to c
-		img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H), algo=algo)
+		img_C_out = ForwardWarp(img_C_out, img_B, Rec_b, np.linalg.inv(H))
+		cv2.imwrite('imgB_' + warp + '.jpg', img_B_out)
+		cv2.imwrite('imgC_' + warp + '.jpg', img_C_out)
 
 	# cv2.imshow('ImgB', img_B_out)
 	# cv2.waitKey(0)
 	# cv2.imshow('ImgC', img_C_out)
 	# cv2.waitKey(0)
-	cv2.imwrite('imgB_' + warp + '_' + algo + '.jpg', img_B_out)
-	cv2.imwrite('imgC_' + warp + '_' + algo + '.jpg', img_C_out)
 
 if __name__ == '__main__':
 
@@ -255,10 +258,10 @@ if __name__ == '__main__':
 	H_B_C = GetHomography(testB_2D_homo, testC_2D_homo)
 
 	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='forward')
-	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='forward')
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='forward')
 
-	# SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='nn')
-	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='nn')
+	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='nn')
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='nn')
 
-	# SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='bilinear')
-	# SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='bilinear')
+	SwapImgA(img_A, testA_left, testA_right, H_A_left_A_right, warp='backward', algo='bilinear')
+	SwapImgBC(img_B, img_C, testB_2D, testC_2D, H_B_C, warp='backward', algo='bilinear')
