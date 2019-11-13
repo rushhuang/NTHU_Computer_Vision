@@ -8,7 +8,10 @@ def getProjectionMatrix(corner_label, threeD_point):
 	
 	Parameters:
 	* corner_label: 2D points in the image.
-	* threeD_points: 3D points from the reality.
+	* threeD_points: 3D points from the real world.
+
+	Return:
+	* P: Projection matrix.
 	"""
 
 	# Concatenate the equations
@@ -51,6 +54,11 @@ def getKRT(P):
 
 	Parameters:
 	* P: Projection Matrix
+
+	Return:
+	* K: 3X3 upper triangular matrix.
+	* R: 3X3 orthogonal matrix.
+	* t: 3X1 matrix.
 	"""
 
 	# Normalize P with ||P31,P32,P33||
@@ -79,7 +87,8 @@ def getKRT(P):
 
 def ReProject(img, img_name, K, R, t, twoD, threeD):
 	"""
-	Reproject the 2d points on image by given K, R, and t.
+	Reproject and display the 2d points on image by
+	given K, R, and t.
 
 	Parameters:
 	* img: Image to reproject on.
@@ -121,7 +130,7 @@ def ReProject(img, img_name, K, R, t, twoD, threeD):
 
 	tgs = np.asarray(tgs)
 	rmse = np.sqrt(np.mean((tgs - twoD)**2))
-	# print("Root Mean Square Error(RMSE): %f" % rmse)
+	print("Root Mean Square Error(RMSE): %f" % rmse)
 
 	cv2.imwrite(img_name, img)
 	# cv2.imshow(img_name, img)
@@ -161,9 +170,9 @@ if __name__ == '__main__':
 	K_2, R_2, t_2 = getKRT(P_2)
 
 	### Reproject 2D points by K, R, T ###
-	ReProject(img_1, 'chessboard1_r.jpg', K_1, R_1, t_1,
+	ReProject(img_1, 'chessboard_1r.jpg', K_1, R_1, t_1,
 				corner_label_1, threeD_point_homo)
-	ReProject(img_2, 'chessboard2_r.jpg', K_2, R_2, t_2,
+	ReProject(img_2, 'chessboard_2r.jpg', K_2, R_2, t_2,
 				corner_label_2, threeD_point_homo)
 
 	visualize(threeD_point, R_1, t_1, R_2, t_2)

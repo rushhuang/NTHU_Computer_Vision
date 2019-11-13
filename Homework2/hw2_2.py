@@ -2,13 +2,33 @@ import cv2
 import numpy as np
 
 def GetHomogeneousPoints(point_2d):
+	"""
+	Return the input coordinates in homogeneous form.
+	
+	Parameters:
+	* point_2d: 2D coordinates.
+
+	Return:
+	* homo: Homogeneous coordinates of 2D points.
+	"""
+
 	tmp = np.ones((point_2d.shape[0], 1))
 	homo = np.concatenate((point_2d, tmp), axis = 1)
+
 	return homo
 
 def GetHomography(a, b):
-	# a = Hb
-	# b = H^{-1}a
+	"""
+	Get the homography matrix from given points as relations:
+	a = Hb, also b = H^{-1}a
+	
+	Parameters:
+	* a: 4 2D points from the rectangle to be projected to.
+	* b: 4 2D points from the other rectangle.
+
+	Return:
+	* H: Homography matrix.
+	"""
 
 	# Concatenate the equations
 	# Ai = [[X1, Y1, 1, 0, 0, 0, −x1X1, −x1Y1, −x1],
@@ -43,8 +63,24 @@ def GetHomography(a, b):
 
 def GetRectangle(img, corners):
 	"""
-	Return: [[x1, y1, 0],[x2, y2, 0],...]
+	Get the coordinates from pixels in the given rectangle
+	by left hand side method, and set the rectangle area
+	to black as initialization.
+	
+	Parameters:
+	* img: Image to be outputted as swapped image.
+	* corners: 4 2D points for the corners of rectangle.
+	NOTE: The corner points should be in the order of top-left,
+	      top-right, bottom-left, bottom-right.
+
+	Return:
+	* NX3 homogeneous coordinates array, like
+	  [ [x1, y1, 1],
+	    [x2, y2, 1],
+	    ...
+	    [xN, yN, 1]]
 	"""
+
 	rectangle_homo = []
 
 	# Get the outer bound of the rectangle
@@ -115,6 +151,19 @@ def GetRectangle(img, corners):
 	return rectangle_homo
 
 def ForwardWarp(img_dst, img_src, src_points, H):
+	"""
+	Do the forward warping.
+
+	Parameters:
+	* img_dst: The image to be outputted.
+	* img_src: The original image.
+	* src_points: Pixel coordinates within the rectangle.
+	* H: Homography matrix.
+
+	Return:
+	* img_dst: The image to be outputted.
+	"""
+
 	for p in src_points:
 		p = p.reshape((3, 1))
 		p_prime = np.dot(H, p)
@@ -129,11 +178,29 @@ def ForwardWarp(img_dst, img_src, src_points, H):
 	return img_dst
 
 def BackwardWarp(img_dst, img_src, dst_points, H, algo='bilinear'):
+	"""
+	Do the backward warping.
+
+	Parameters:
+	* img_dst: The image to be outputted.
+	* img_src: The original image.
+	* dst_points: Pixel coordinates within the rectangle.
+	* H: Homography matrix.
+	* algo: Choose whether bilinear interpolation or nearest neighbor 
+	        algorithm to be performed.
+	        'bilinear': Default. To perform bilinear interpolation.
+	        'nn': To perform nearest neighbor algorithm.
+	
+	Return:
+	* img_dst: The image to be outputted.
+	"""
+
 	for p_prime in dst_points:
 		p_prime = p_prime.reshape((3, 1))
 		p = np.dot(np.linalg.inv(H), p_prime)
 		p /= p[2]
 		
+		# Perform bilinear algorithm
 		if algo == 'bilinear':
 			x = p[0]
 			y = p[1]
@@ -162,6 +229,7 @@ def BackwardWarp(img_dst, img_src, dst_points, H, algo='bilinear'):
 	
 			img_dst[p_prime[1][0]][p_prime[0][0]] = p00*w00 + p01*w01 + p10*w10 + p11*w11
 
+		# Perform nearest neighbor algorithm
 		if algo == 'nn':
 			x = int(np.round(p[0]))
 			y = int(np.round(p[1]))
@@ -173,8 +241,25 @@ def BackwardWarp(img_dst, img_src, dst_points, H, algo='bilinear'):
 
 def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 	"""
-	a = Hb
+	Swap the two rectangles in image A.
+
+	Parameters:
+	* img: Image A, which contains two rectangles.
+	* a: 2D points of the 4 corners in a rectangle.
+	     a = Hb
+	* b: 2D points of the 4 corners in a rectangle.
+	     a = Hb
+	* H: Homography matrix.
+	* warp: Choose whether backward or forward warping to be performed.
+	        'backward': Default. Perform the backward warping.
+	        'forward': Perform the forward warping.
+	* algo: Choose whether bilinear interpolation or nearest neighbor 
+	        algorithm to be performed in backward warping.
+	        'bilinear': Default. To perform bilinear interpolation.
+	        'nn': To perform nearest neighbor algorithm.
+	        NOTE: Only works on backward warping.
 	"""
+
 	img_out = img.copy()
 
 	Rec_b = GetRectangle(img_out, b)
@@ -182,6 +267,7 @@ def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 	Rec_a = GetRectangle(img_out, a)
 	Rec_a = np.asarray(Rec_a)
 
+	# Perform the backward warping
 	if warp == 'backward':
 		# From b to a
 		img_out = BackwardWarp(img_out, img, Rec_a, H, algo=algo)
@@ -189,6 +275,7 @@ def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 		img_out = BackwardWarp(img_out, img, Rec_b, np.linalg.inv(H), algo=algo)
 		cv2.imwrite('imgA_' + warp + '_' + algo + '.jpg', img_out)
 
+	# Perform the forward warping
 	if warp == 'forward':
 		# From b to a
 		img_out = ForwardWarp(img_out, img, Rec_b, H)
@@ -201,8 +288,26 @@ def SwapImgA(img, a, b, H, warp='backward', algo='bilinear'):
 
 def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 	"""
-	b = Hc
+	Swap the two rectangles in image B and image C.
+
+	Parameters:
+	* img_B: Image B, which contains one of the two rectangles.
+	* img_C: Image C, which contains one of the two rectangles.
+	* b: 2D points of the 4 corners in a rectangle.
+	     b = Hc
+	* c: 2D points of the 4 corners in a rectangle.
+	     b = Hc
+	* H: Homography matrix.
+	* warp: Choose whether backward or forward warping to be performed.
+	        'backward': Default. Perform the backward warping.
+	        'forward': Perform the forward warping.
+	* algo: Choose whether bilinear interpolation or nearest neighbor 
+	        algorithm to be performed in backward warping.
+	        'bilinear': Default. To perform bilinear interpolation.
+	        'nn': To perform nearest neighbor algorithm.
+	        NOTE: Only works on backward warping.
 	"""
+
 	img_B_out = img_B.copy()
 	img_C_out = img_C.copy()
 
@@ -211,6 +316,7 @@ def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 	Rec_b = GetRectangle(img_B_out, b)
 	Rec_b = np.asarray(Rec_b)
 
+	# Perform the backward warping
 	if warp == 'backward':
 		# From c to b
 		img_B_out = BackwardWarp(img_B_out, img_C, Rec_b, H, algo=algo)
@@ -219,6 +325,7 @@ def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 		cv2.imwrite('imgB_' + warp + '_' + algo + '.jpg', img_B_out)
 		cv2.imwrite('imgC_' + warp + '_' + algo + '.jpg', img_C_out)
 
+	# Perform the forward warping
 	if warp == 'forward':
 		# From c to b
 		img_B_out = ForwardWarp(img_B_out, img_C, Rec_c, H)
@@ -235,18 +342,20 @@ def SwapImgBC(img_B, img_C, b, c, H, warp='backward', algo='bilinear'):
 if __name__ == '__main__':
 
 	# Load the images.
-	testA = 'testA.jpg'
-	testB = 'testB.jpg'
-	testC = 'testC.jpg'
+	testA = 'data/imgA.jpg'
+	testB = 'data/imgB.jpg'
+	testC = 'data/imgC.jpg'
 	img_A = cv2.imread(testA) # H X W X 3
 	img_B = cv2.imread(testB)
 	img_C = cv2.imread(testC)
 
 	# Load the 2d points
-	testA_left = np.load('testA_2D_left.npy') # X(W), Y(H)
-	testA_right = np.load('testA_2D_right.npy')
-	testB_2D = np.load('testB_2D.npy')
-	testC_2D = np.load('testC_2D.npy')
+	# NOTE: The corner points should be in the order of top-left,
+	#       top-right, bottom-left, bottom-right.
+	testA_left = np.load('imgA_2D_left.npy') # X(W), Y(H)
+	testA_right = np.load('imgA_2D_right.npy')
+	testB_2D = np.load('imgB_2D.npy')
+	testC_2D = np.load('imgC_2D.npy')
 
 	# Generate homogeneous matrix
 	testA_left_homo = GetHomogeneousPoints(testA_left)
